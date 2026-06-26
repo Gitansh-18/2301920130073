@@ -1,3 +1,4 @@
+
 # Stage 1: Notification System Architecture & API Design
 
 ## 1. REST API Contract & Endpoints
@@ -79,6 +80,7 @@ JSON
   "message": "CSX Corporation hiring application window is now open.",
   "createdAt": "2026-06-26T11:32:00Z"
 }
+---
 # Stage 2: Database Storage Engine & Scalability Modeling
 ## 1. Persistent Storage Selection: PostgreSQL (Relational DBMS)
 For an institutional notification system handling student records, exam results, and career placement timelines, a relational model like PostgreSQL is chosen over NoSQL alternatives for the following reasons:
@@ -141,6 +143,7 @@ SQL
 -- Inserting a centralized notification blueprint template
 INSERT INTO notification_templates (type, title, message)
 VALUES ('Placement', 'CSX Corporation Hiring', 'CSX Corporation application window has opened.');
+---
 # Stage 3: Query Optimization and Indexing
 ## 1. Analysis of the Existing Slow Query
 The current query being executed on the system is:
@@ -180,6 +183,7 @@ FROM student_notifications sn
 JOIN notification_templates nt ON sn.template_id = nt.id
 WHERE nt.type = 'Placement'
   AND sn.created_at >= CURRENT_TIMESTAMP - INTERVAL '7 days';
+---
 # Stage 4: Performance Improvements for Notification Fetching
 ## 1. The Core Problem: Database Bottleneck on Page Load
 When 50,000+ students log into the platform simultaneously (e.g., during placement season), fetching notifications directly from the disk-bound PostgreSQL database on every single page load will saturate connection pools and result in high latencies or database crashes.
@@ -204,7 +208,7 @@ Cons: High write-amplification cost and massive memory consumption if caching da
 
 ## 4. Implementation Choice & Justification
 We choose a Hybrid Cache-Aside Strategy with an aggressive Time-To-Live (TTL) expiration of 15 minutes. Unread notifications change frequently as students click them; a short TTL prevents stale cache issues while completely insulating the core database from redundant, rapid page-refresh traffic.
-
+---
 # Stage 5: Reliable Notification Broadcasting Redesign
 ## 1. Shortcomings of the Initial Implementation
 The initial synchronous loop design executes network I/O blockades point-by-point. If an external vendor API breaks down midway, the loop halts completely, creating system-wide blockages.
@@ -234,3 +238,16 @@ messageQueue.consume("notification_broadcast_pool", async (job) => {
     }
 });
 
+---
+
+## Stage 6 & 7: Priority Inbox Implementation & Frontend Architecture
+
+### 1. In-Memory Priority Sorting Algorithm Approach
+To sort incoming dynamic notification feeds efficiently without burdening database operations, we implement a linear sort comparator on the client side. Notifications are prioritized using strict type weights followed by chronological recency:
+$$\text{Weight Factor: } \text{Placement (3)} > \text{Result (2)} > \text{Event (1)}$$
+
+### 2. Frontend State Management and UI/UX Strategy
+The React frontend application utilizes standard hooks to handle streaming pagination and read/unread status shifts smoothly:
+* **State Structuring:** An array state tracks notifications dynamically. A dedicated utility wrapper passes the data to our `getPriorityInbox` engine to populate the primary notification tray.
+* **Read vs Unread Distinction:** Unread notification nodes display an assertive indicator badge styled through Material UI. Once clicked, an asynchronous request flags the object status as read.
+* **Component De-cluttering:** The application uses a structured layout dividing all historical notifications from high-priority active action items on separate responsive layout pages.
