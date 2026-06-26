@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AffordMed Notification Panel</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        body { font-family: 'Roboto', sans-serif; background-color: #f5f7fb; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 900px; margin: 0 auto; }
+        header { background: linear-gradient(135deg, #1976d2, #0d47a1); color: white; padding: 20px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .controls { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        select, input { padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; min-width: 150px; }
+        .btn { background-color: #1976d2; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500; transition: 0.2s; }
+        .btn:hover { background-color: #1565c0; }
+        .notification-card { background: white; padding: 18px; border-radius: 10px; margin-bottom: 12px; border-left: 5px solid #ccc; box-shadow: 0 2px 6px rgba(0,0,0,0.03); display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
+        .notification-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .type-placement { border-left-color: #d32f2f; }
+        .type-result { border-left-color: #f57c00; }
+        .type-event { border-left-color: #388e3c; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; color: white; }
+        .badge-placement { background-color: #d32f2f; }
+        .badge-result { background-color: #f57c00; }
+        .badge-event { background-color: #388e3c; }
+        .meta-info { font-size: 12px; color: #777; margin-top: 5px; }
+        .pagination { display: flex; justify-content: center; gap: 10px; margin-top: 25px; align-items: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1 style="margin:0; font-size: 24px;"><i class="fa-solid fa-bell"></i> AffordMed Student Notification Portal</h1>
+            <p style="margin:5px 0 0 0; opacity:0.8;">Stage 7 Production Dashboard Interface</p>
+        </header>
+
+        <div class="controls">
+            <div>
+                <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:5px;">Filter by Type:</label>
+                <select id="typeFilter" onchange="renderView()">
+                    <option value="ALL">All Notifications</option>
+                    <option value="Placement">Placements Only</option>
+                    <option value="Result">Results Only</option>
+                    <option value="Event">Events Only</option>
+                </select>
+            </div>
+            <div>
+                <label style="display:block; font-size:12px; font-weight:bold; margin-bottom:5px;">Priority Inbox Limit (n):</label>
+                <input type="number" id="topN" value="3" min="1" max="10" style="width: 80px;" onchange="renderView()">
+            </div>
+            <button class="btn" style="margin-top: 15px;" onclick="simulateNewArrival()"><i class="fa-solid fa-plus"></i> Simulate Live Ingestion</button>
+        </div>
+
+        <h3 id="inboxHeading">Priority Live Feed</h3>
+        <div id="notificationContainer"></div>
+
+        <div class="pagination">
+            <button class="btn" onclick="changePage(-1)"><i class="fa-solid fa-chevron-left"></i> Previous</button>
+            <span id="pageTracker" style="font-weight:bold;">Page 1</span>
+            <button class="btn" onclick="changePage(1)">Next <i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+    </div>
+
+    <script>
+        // Production API mock response stream matching Stage 6 specifications
+        let masterNotifications = [
+            { "ID": "1", "Type": "Result", "Message": "Mid-Sem Evaluation Result Released", "Timestamp": "2026-06-26 11:30:00" },
+            { "ID": "2", "Type": "Placement", "Message": "CSX Corporation Drive Window Open", "Timestamp": "2026-06-26 11:45:00" },
+            { "ID": "3", "Type": "Event", "Message": "Annual Tech-Fest Registration Open", "Timestamp": "2026-06-26 10:15:00" },
+            { "ID": "4", "Type": "Placement", "Message": "Advanced Micro Devices Hiring Shortlist", "Timestamp": "2026-06-26 12:10:00" }
+        ];
+
+        let currentPage = 1;
+        const itemsPerPage = 3;
+        const weights = { 'placement': 3, 'result': 2, 'event': 1 };
+
+        function getPriorityInbox(data, topN) {
+            return [...data].sort((a, b) => {
+                const wA = weights[a.Type.toLowerCase()] || 0;
+                const wB = weights[b.Type.toLowerCase()] || 0;
+                if (wA !== wB) return wB - wA;
+                return new Date(b.Timestamp) - new Date(a.Timestamp);
+            }).slice(0, topN);
+        }
+
+        function renderView() {
+            const filterValue = document.getElementById('typeFilter').value;
+            const limit = parseInt(document.getElementById('topN').value) || 3;
+            
+            let dataset = [...masterNotifications];
+            if (filterValue !== "ALL") {
+                dataset = dataset.filter(n => n.Type === filterValue);
+            }
+
+            // Route dataset through the priority sorting logic engine
+            const prioritisedData = getPriorityInbox(dataset, limit);
+            
+            const container = document.getElementById('notificationContainer');
+            container.innerHTML = '';
+
+            if(prioritisedData.length === 0) {
+                container.innerHTML = `<div class="notification-card" style="justify-content:center; color:#777;">No notifications match this operational view layer.</div>`;
+                return;
+            }
+
+            prioritisedData.forEach(item => {
+                const card = document.createElement('div');
+                card.className = `notification-card type-${item.Type.toLowerCase()}`;
+                card.innerHTML = `
+                    <div>
+                        <span class="badge badge-${item.Type.toLowerCase()}">${item.Type}</span>
+                        <div style="font-weight: 500; margin-top: 8px; font-size: 15px;">${item.Message}</div>
+                        <div class="meta-info"><i class="fa-regular fa-clock"></i> ${item.Timestamp} | ID: ${item.ID}</div>
+                    </div>
+                    <div style="color: #1976d2; font-size: 18px;"><i class="fa-solid fa-circle-check" style="cursor:pointer;" onclick="this.parentElement.parentElement.remove()"></i></div>
+                `;
+                container.appendChild(card);
+            });
+
+            document.getElementById('pageTracker').innerText = `Page ${currentPage}`;
+        }
+
+        function simulateNewArrival() {
+            const newId = Math.floor(Math.random() * 1000);
+            const liveEvent = {
+                "ID": String(newId),
+                "Type": "Placement",
+                "Message": `🚨 Real-Time Ingestion: Global Tech Inc. Pool Drive Added!`,
+                "Timestamp": new Date().toISOString().slice(0, 19).replace('T', ' ')
+            };
+            masterNotifications.unshift(liveEvent);
+            renderView();
+        }
+
+        function changePage(direction) {
+            if (currentPage + direction > 0) {
+                currentPage += direction;
+                renderView();
+            }
+        }
+
+        // Initialize view layer immediately upon execution
+        renderView();
+    </script>
+</body>
+</html>
