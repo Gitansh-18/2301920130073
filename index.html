@@ -62,7 +62,7 @@
     </div>
 
     <script>
-        // Production API mock response stream matching Stage 6 specifications
+        
         let masterNotifications = [
             { "ID": "1", "Type": "Result", "Message": "Mid-Sem Evaluation Result Released", "Timestamp": "2026-06-26 11:30:00" },
             { "ID": "2", "Type": "Placement", "Message": "CSX Corporation Drive Window Open", "Timestamp": "2026-06-26 11:45:00" },
@@ -92,7 +92,7 @@
                 dataset = dataset.filter(n => n.Type === filterValue);
             }
 
-            // Route dataset through the priority sorting logic engine
+            
             const prioritisedData = getPriorityInbox(dataset, limit);
             
             const container = document.getElementById('notificationContainer');
@@ -139,7 +139,7 @@
             }
         }
 
-        // Initialize view layer immediately upon execution
+        
         renderView();
     </script>
 </body>
